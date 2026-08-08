@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <pattern id="graphite" width="19" height="19" patternUnits="userSpaceOnUse" patternTransform="rotate(-11)">
+      <path d="M-2 4.5H21M-2 10.5H21M-2 16.5H21" fill="none" stroke="#425035" stroke-width="0.8" opacity="0.11"/>
+    </pattern>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="#C8D478"/>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#graphite)"/>
+  <rect x="11" y="11" width="234" height="234" rx="51" fill="none" stroke="#748044" stroke-width="6" opacity="0.9"/>
+
+  <g fill="none" stroke="#292A22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M72 45v18" stroke-width="15"/>
+    <path d="M42 68h73" stroke-width="17"/>
+    <path d="M58 91c2 25 14 45 35 58 8 5 17 9 27 11" stroke-width="16"/>
+    <path d="M105 86c-3 31-18 55-39 69-7 5-14 8-22 9" stroke-width="16"/>
+  </g>
+
+  <g fill="none" stroke="#24342A" stroke-linecap="round" stroke-linejoin="round" stroke-width="17">
+    <path d="M101 190 151 87l52 103"/>
+    <path d="M122 149h59"/>
+  </g>
+
+  <path d="M111 155c7-4 13-10 18-17" fill="none" stroke="#C8D478" stroke-linecap="round" stroke-width="6"/>
+  <path d="M110 153c7-4 12-9 17-16" fill="none" stroke="#24342A" stroke-linecap="round" stroke-width="3" opacity="0.8"/>
+  <path d="M194 43c3 13 13 23 27 27-14 4-24 14-27 28-4-14-14-24-28-28 14-4 24-14 28-27Z" fill="#F3F0D2"/>
+  <path d="M50 187c2 9 9 16 19 19-10 2-17 9-19 19-3-10-10-17-19-19 9-3 16-10 19-19Z" fill="#6D773B"/>
+</svg>

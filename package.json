@@ -1,0 +1,217 @@
+{
+  "name": "quick-translation",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.8.6",
+  "publisher": "local",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wynnsimon/quick-translation.git"
+  },
+  "icon": "resources/icon.png",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "l10n": "./l10n",
+  "contributes": {
+    "commands": [
+      {
+        "command": "quickTranslation.open",
+        "title": "%command.open%",
+        "category": "%category%",
+        "icon": {
+          "light": "resources/translate-light.svg",
+          "dark": "resources/translate-dark.svg"
+        }
+      },
+      {
+        "command": "quickTranslation.configure",
+        "title": "%command.configure%",
+        "category": "%category%",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "quickTranslation.translateSelection",
+        "title": "%command.translateSelection%",
+        "category": "%category%",
+        "icon": {
+          "light": "resources/translate-light.svg",
+          "dark": "resources/translate-dark.svg"
+        }
+      },
+      {
+        "command": "quickTranslation.translateAndReplace",
+        "title": "%command.translateAndReplace%",
+        "category": "%category%",
+        "icon": "$(replace-all)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "quickTranslation.open",
+          "alt": "quickTranslation.configure",
+          "group": "navigation@100"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "quickTranslation.translateSelection",
+          "when": "editorHasSelection",
+          "group": "1_modification@100"
+        },
+        {
+          "command": "quickTranslation.translateAndReplace",
+          "when": "editorHasSelection",
+          "group": "1_modification@101"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "quickTranslation.open",
+        "key": "ctrl+shift+y",
+        "mac": "cmd+shift+y"
+      },
+      {
+        "command": "quickTranslation.translateAndReplace",
+        "key": "ctrl+alt+shift+y",
+        "mac": "cmd+alt+shift+y",
+        "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "quickTranslation.configure",
+        "key": "ctrl+k ctrl+y",
+        "mac": "cmd+k cmd+y"
+      }
+    ],
+    "configuration": {
+      "title": "%configuration.title%",
+      "properties": {
+        "quickTranslation.primaryLanguage": {
+          "type": "string",
+          "default": "zh-CN",
+          "enum": [
+            "zh-CN",
+            "zh-TW",
+            "en",
+            "ja",
+            "ko",
+            "fr",
+            "de",
+            "es",
+            "ru",
+            "pt",
+            "it",
+            "ar"
+          ],
+          "enumDescriptions": [
+            "%language.zhCN%",
+            "%language.zhTW%",
+            "%language.en%",
+            "%language.ja%",
+            "%language.ko%",
+            "%language.fr%",
+            "%language.de%",
+            "%language.es%",
+            "%language.ru%",
+            "%language.pt%",
+            "%language.it%",
+            "%language.ar%"
+          ],
+          "description": "%configuration.primaryLanguage.description%"
+        },
+        "quickTranslation.secondaryLanguage": {
+          "type": "string",
+          "default": "en",
+          "enum": [
+            "zh-CN",
+            "zh-TW",
+            "en",
+            "ja",
+            "ko",
+            "fr",
+            "de",
+            "es",
+            "ru",
+            "pt",
+            "it",
+            "ar"
+          ],
+          "enumDescriptions": [
+            "%language.zhCN%",
+            "%language.zhTW%",
+            "%language.en%",
+            "%language.ja%",
+            "%language.ko%",
+            "%language.fr%",
+            "%language.de%",
+            "%language.es%",
+            "%language.ru%",
+            "%language.pt%",
+            "%language.it%",
+            "%language.ar%"
+          ],
+          "description": "%configuration.secondaryLanguage.description%"
+        },
+        "quickTranslation.enabledProviders": {
+          "type": "array",
+          "default": [
+            "microsoft",
+            "google",
+            "baidu"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "microsoft",
+              "google",
+              "baidu"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "description": "%configuration.enabledProviders.description%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build",
+    "check": "pnpm run check-types && pnpm run lint",
+    "compile": "pnpm run check && node esbuild.js",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "build": "pnpm run check && node esbuild.js --production",
+    "package:vsix": "vsce package",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.85.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "typescript-eslint": "^8.61.1",
+    "eslint": "^10.5.0",
+    "esbuild": "^0.28.1",
+    "typescript": "^6.0.3",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^3.7.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  }
+}
