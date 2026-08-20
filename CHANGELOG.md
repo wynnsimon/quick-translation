@@ -8,6 +8,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.0]
+
+- Added automatic provider selection using startup latency checks and a lazy 10-minute background refresh.
+- Added a fixed mode that follows the user-configured provider fallback order.
+- Made VS Code build tasks portable by resolving `mise` from the current environment.
+
 ## [0.8.6]
 
 - Replaced the blue-violet gradient with a muted chartreuse, graphite, and warm-paper palette with subtle pencil hatching.
