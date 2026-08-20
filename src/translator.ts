@@ -105,13 +105,9 @@ async function translateTo(
 	},
 ): Promise<TranslationResult> {
 	const attempts: TranslationAttempt[] = [];
-	const enabled = new Set(request.enabledProviders);
 	const providersById = new Map(request.providers.map((provider) => [provider.id, provider]));
 
-	for (const providerId of PROVIDER_ORDER) {
-		if (!enabled.has(providerId)) {
-			continue;
-		}
+	for (const providerId of request.enabledProviders) {
 		const provider = providersById.get(providerId);
 		if (!provider) {
 			continue;

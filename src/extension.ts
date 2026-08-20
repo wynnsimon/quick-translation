@@ -1,5 +1,10 @@
 import * as vscode from 'vscode';
-import { getTranslationConfiguration, openTranslationConfiguration } from './configuration';
+import {
+	getTranslationConfiguration,
+	openTranslationConfiguration,
+	testAndSelectFastestProvider,
+	waitForProviderOrder,
+} from './configuration';
 import { replaceEditorSelections } from './editorActions';
 import { providerLabel } from './languages';
 import { prepareTextForTranslation } from './textFormatting';
@@ -8,6 +13,18 @@ import { isAbortError, translateText } from './translator';
 
 export function activate(context: vscode.ExtensionContext) {
 	let activeSession: vscode.Disposable | undefined;
+	let speedTest = new AbortController();
+
+	function refreshAutomaticProvider(): void {
+		speedTest.abort();
+		speedTest = new AbortController();
+		const config = getTranslationConfiguration();
+		if (config.providerMode === 'auto') {
+			void testAndSelectFastestProvider(speedTest.signal, config.enabledProviders);
+		}
+	}
+
+	refreshAutomaticProvider();
 
 	function openTranslation(): void {
 		const editor = vscode.window.activeTextEditor;
@@ -58,7 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
 							signal: controller.signal,
 							primaryLanguage: config.primaryLanguage,
 							secondaryLanguage: config.secondaryLanguage,
-							enabledProviders: config.enabledProviders,
+							enabledProviders: await waitForProviderOrder(config),
 						}),
 					})));
 				} finally {
@@ -96,6 +113,15 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('quickTranslation.translateSelection', openTranslation),
 		vscode.commands.registerCommand('quickTranslation.translateAndReplace', translateAndReplace),
 		vscode.commands.registerCommand('quickTranslation.configure', openTranslationConfiguration),
-		new vscode.Disposable(() => activeSession?.dispose()),
+		vscode.workspace.onDidChangeConfiguration((event) => {
+			if (event.affectsConfiguration('quickTranslation.providerMode')
+				|| event.affectsConfiguration('quickTranslation.enabledProviders')) {
+				refreshAutomaticProvider();
+			}
+		}),
+		new vscode.Disposable(() => {
+			speedTest.abort();
+			activeSession?.dispose();
+		}),
 	);
 }

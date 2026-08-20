@@ -18,6 +18,7 @@ export const LANGUAGES = [
 export type LanguageCode = typeof LANGUAGES[number]['code'];
 export type SourceLanguageCode = LanguageCode | 'auto';
 export type ProviderId = 'microsoft' | 'google' | 'baidu';
+export type ProviderMode = 'auto' | 'fixed';
 
 export const DEFAULT_PRIMARY_LANGUAGE: LanguageCode = 'zh-CN';
 export const DEFAULT_SECONDARY_LANGUAGE: LanguageCode = 'en';
@@ -32,6 +33,10 @@ export function languageLabel(code: LanguageCode): string {
 
 export function providerLabel(provider: ProviderId): string {
 	return provider === 'baidu' ? vscode.l10n.t('Baidu') : provider === 'google' ? 'Google' : 'Microsoft';
+}
+
+export function isProviderMode(value: unknown): value is ProviderMode {
+	return value === 'auto' || value === 'fixed';
 }
 
 export function toProviderLanguage(provider: ProviderId, language: SourceLanguageCode): string {

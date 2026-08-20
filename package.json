@@ -17,7 +17,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "l10n": "./l10n",
   "contributes": {
@@ -179,21 +181,34 @@
           "uniqueItems": true,
           "minItems": 1,
           "description": "%configuration.enabledProviders.description%"
+        },
+        "quickTranslation.providerMode": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "fixed"
+          ],
+          "enumDescriptions": [
+            "%provider.auto%",
+            "%provider.fixed%"
+          ],
+          "description": "%configuration.providerMode.description%"
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run build",
-    "check": "pnpm run check-types && pnpm run lint",
-    "compile": "pnpm run check && node esbuild.js",
+    "vscode:prepublish": "npm run build",
+    "check": "npm run check-types && npm run lint",
+    "compile": "npm run check && node esbuild.js",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "build": "pnpm run check && node esbuild.js --production",
+    "build": "npm run check && node esbuild.js --production",
     "package:vsix": "vsce package",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test"

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getTranslationConfiguration } from './configuration';
+import { getProviderOrder, getTranslationConfiguration, waitForProviderOrder } from './configuration';
 import { insertTranslationBelow, replaceEditorSelection } from './editorActions';
 import { LANGUAGES, LanguageCode, languageLabel, ProviderId, providerLabel } from './languages';
 import { isAbortError, PROVIDER_ORDER, translateText, TranslationChainError } from './translator';
@@ -41,11 +41,6 @@ const PROVIDER_RETRY_BUTTONS: Record<ProviderId, vscode.QuickInputButton> = {
 	microsoft: { iconPath: new vscode.ThemeIcon('server-process'), tooltip: vscode.l10n.t('Retry with Microsoft only') },
 	google: { iconPath: new vscode.ThemeIcon('globe'), tooltip: vscode.l10n.t('Retry with Google only') },
 	baidu: { iconPath: new vscode.ThemeIcon('symbol-text'), tooltip: vscode.l10n.t('Retry with Baidu only') },
-};
-const WAITING_ITEM: vscode.QuickPickItem = {
-	label: vscode.l10n.t('$(sync~spin) Translating…'),
-	description: vscode.l10n.t('Microsoft → Google → Baidu'),
-	alwaysShow: true,
 };
 
 type TranslationQuickPickItem = vscode.QuickPickItem & {
@@ -141,11 +136,19 @@ export function openTranslationQuickPick(options: TranslationQuickPickOptions = 
 		const request = new AbortController();
 		activeRequest = request;
 		quickPick.busy = true;
-		quickPick.items = [WAITING_ITEM];
-		debounceTimer = setTimeout(() => {
+		const initialConfig = getTranslationConfiguration();
+		quickPick.items = [{
+			label: vscode.l10n.t('$(sync~spin) Translating…'),
+			description: getProviderOrder(initialConfig).map(providerLabel).join(' → '),
+			alwaysShow: true,
+		}];
+		debounceTimer = setTimeout(async () => {
 			debounceTimer = undefined;
 			const config = getTranslationConfiguration();
-			const enabledProviders = providerOverride ?? config.enabledProviders;
+			const enabledProviders = providerOverride ?? await waitForProviderOrder(config);
+			if (disposed || activeRequest !== request) {
+				return;
+			}
 			void translateText({
 				text: value,
 				signal: request.signal,

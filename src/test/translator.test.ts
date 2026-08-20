@@ -33,6 +33,27 @@ suite('Translator', () => {
 		assert.deepStrictEqual(result.attempts.map((attempt) => attempt.provider), ['microsoft', 'google']);
 	});
 
+	test('follows a user-configured provider order', async () => {
+		const calls: ProviderId[] = [];
+		const providers = PROVIDER_ORDER.map((id) => provider(id, async () => {
+			calls.push(id);
+			if (id === 'google') {
+				return { text: '你好', detectedLanguage: 'en' };
+			}
+			throw new Error(`${id} unavailable`);
+		}));
+
+		const result = await translateText({
+			text: 'hello',
+			signal: new AbortController().signal,
+			providers,
+			enabledProviders: ['baidu', 'google', 'microsoft'],
+		});
+
+		assert.deepStrictEqual(calls, ['baidu', 'google']);
+		assert.strictEqual(result.provider, 'google');
+	});
+
 	test('reports every failed provider', async () => {
 		const providers = PROVIDER_ORDER.map((id) => provider(id, async () => {
 			throw new Error(`${id} unavailable`);

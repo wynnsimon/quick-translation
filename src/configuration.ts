@@ -7,6 +7,8 @@ import {
 	languageLabel,
 	LANGUAGES,
 	ProviderId,
+	ProviderMode,
+	isProviderMode,
 	providerLabel,
 } from './languages';
 import { PROVIDER_ORDER, translateText } from './translator';
@@ -14,6 +16,7 @@ import { PROVIDER_ORDER, translateText } from './translator';
 export type TranslationConfiguration = {
 	primaryLanguage: LanguageCode;
 	secondaryLanguage: LanguageCode;
+	providerMode: ProviderMode;
 	enabledProviders: readonly ProviderId[];
 };
 
@@ -23,6 +26,22 @@ export type ProviderHealth = {
 	durationMs: number;
 	detail: string;
 };
+
+let automaticProviderOrder: readonly ProviderId[] = PROVIDER_ORDER;
+let automaticProviderTest: Promise<readonly ProviderHealth[]> | undefined;
+let automaticProviderOrderUpdatedAt = 0;
+
+export const AUTOMATIC_PROVIDER_ORDER_TTL_MS = 10 * 60 * 1_000;
+
+export function isProviderOrderExpired(updatedAt: number, now = Date.now()): boolean {
+	return updatedAt > 0 && now - updatedAt >= AUTOMATIC_PROVIDER_ORDER_TTL_MS;
+}
+
+export function rankProvidersByLatency(results: readonly ProviderHealth[]): readonly ProviderId[] {
+	return [...results]
+		.sort((left, right) => Number(right.available) - Number(left.available) || left.durationMs - right.durationMs)
+		.map((result) => result.provider);
+}
 
 export async function checkProviderHealth(
 	provider: ProviderId,
@@ -68,15 +87,66 @@ export function getTranslationConfiguration(target?: vscode.ConfigurationTarget)
 	};
 	const primary = value<unknown>('primaryLanguage');
 	const secondary = value<unknown>('secondaryLanguage');
+	const providerMode = value<unknown>('providerMode', 'auto');
 	const configuredProviders = value<unknown[]>('enabledProviders', [...PROVIDER_ORDER]) ?? [...PROVIDER_ORDER];
-	const enabled = new Set(configuredProviders.filter((value): value is ProviderId =>
-		typeof value === 'string' && PROVIDER_ORDER.includes(value as ProviderId)));
+	const enabledProviders = [...new Set(configuredProviders.filter((value): value is ProviderId =>
+		typeof value === 'string' && PROVIDER_ORDER.includes(value as ProviderId)))];
 
 	return {
 		primaryLanguage: isLanguageCode(primary) ? primary : DEFAULT_PRIMARY_LANGUAGE,
 		secondaryLanguage: isLanguageCode(secondary) ? secondary : DEFAULT_SECONDARY_LANGUAGE,
-		enabledProviders: PROVIDER_ORDER.filter((provider) => enabled.has(provider)),
+		providerMode: isProviderMode(providerMode) ? providerMode : 'auto',
+		enabledProviders,
 	};
+}
+
+export function getProviderOrder(config = getTranslationConfiguration()): readonly ProviderId[] {
+	if (config.providerMode === 'fixed') {
+		return config.enabledProviders;
+	}
+	const enabled = new Set(config.enabledProviders);
+	return automaticProviderOrder.filter((provider) => enabled.has(provider));
+}
+
+export function testAndSelectFastestProvider(
+	signal: AbortSignal,
+	providers = getTranslationConfiguration().enabledProviders,
+	checker: typeof checkProviderHealth = checkProviderHealth,
+): Promise<readonly ProviderHealth[]> {
+	const test = Promise.all(providers.map((provider) => checker(provider, signal)))
+		.then((results) => {
+			if (!signal.aborted && automaticProviderTest === test) {
+				const ranked = rankProvidersByLatency(results);
+				automaticProviderOrder = [...ranked, ...PROVIDER_ORDER.filter((provider) => !ranked.includes(provider))];
+				automaticProviderOrderUpdatedAt = Date.now();
+			}
+			return results;
+		})
+		.finally(() => {
+			if (automaticProviderTest === test) {
+				automaticProviderTest = undefined;
+			}
+		});
+	automaticProviderTest = test;
+	return test;
+}
+
+export async function waitForProviderOrder(
+	config = getTranslationConfiguration(),
+): Promise<readonly ProviderId[]> {
+	if (config.providerMode === 'fixed') {
+		return getProviderOrder(config);
+	}
+
+	if (!automaticProviderOrderUpdatedAt) {
+		if (!automaticProviderTest) {
+			void testAndSelectFastestProvider(new AbortController().signal, config.enabledProviders);
+		}
+		await automaticProviderTest;
+	} else if (isProviderOrderExpired(automaticProviderOrderUpdatedAt) && !automaticProviderTest) {
+		void testAndSelectFastestProvider(new AbortController().signal, config.enabledProviders);
+	}
+	return getProviderOrder(config);
 }
 
 async function chooseLanguage(
@@ -100,33 +170,59 @@ async function chooseLanguage(
 }
 
 async function chooseProviders(target: vscode.ConfigurationTarget): Promise<void> {
-	const current = new Set(getTranslationConfiguration(target).enabledProviders);
+	const current = getTranslationConfiguration(target);
+	const permutations = PROVIDER_ORDER.flatMap((first) => {
+		const remaining = PROVIDER_ORDER.filter((provider) => provider !== first);
+		return [
+			[first],
+			...[...remaining].map((second) => [first, second]),
+			[first, remaining[0], remaining[1]],
+			[first, remaining[1], remaining[0]],
+		];
+	});
 	const selected = await vscode.window.showQuickPick(
-		PROVIDER_ORDER.map((provider) => ({
-			label: providerLabel(provider),
-			description: vscode.l10n.t('Priority {0}', PROVIDER_ORDER.indexOf(provider) + 1),
-			provider,
-			picked: current.has(provider),
+		permutations.map((providers) => ({
+			label: providers.map(providerLabel).join(' → '),
+			description: current.providerMode === 'auto'
+				? vscode.l10n.t('{0} automatic test candidates', providers.length)
+				: vscode.l10n.t('Fallback order'),
+			providers,
+			picked: providers.join() === current.enabledProviders.join(),
 		})),
 		{
-			title: vscode.l10n.t('Enable translation services (fixed order)'),
-			placeHolder: vscode.l10n.t('Microsoft → Google → Baidu'),
-			canPickMany: true,
+			title: current.providerMode === 'auto'
+				? vscode.l10n.t('Automatic provider candidates')
+				: vscode.l10n.t('Fixed provider fallback order'),
+			placeHolder: current.providerMode === 'auto'
+				? vscode.l10n.t('The fastest available service is used first')
+				: vscode.l10n.t('Services are tried from left to right'),
 		},
 	);
 	if (!selected) {
 		return;
 	}
-	if (!selected.length) {
-		void vscode.window.showWarningMessage(vscode.l10n.t('Enable at least one translation service.'));
-		return;
+	await configuration().update('enabledProviders', selected.providers, target);
+}
+
+async function chooseProviderMode(target: vscode.ConfigurationTarget): Promise<void> {
+	const current = getTranslationConfiguration(target).providerMode;
+	const selected = await vscode.window.showQuickPick([
+		{
+			label: vscode.l10n.t('Automatic (lowest latency)'),
+			description: vscode.l10n.t('Test enabled services and use the fastest available one'),
+			mode: 'auto' as ProviderMode,
+			picked: current === 'auto',
+		},
+		{
+			label: vscode.l10n.t('Fixed fallback order'),
+			description: vscode.l10n.t('Try services in the configured order'),
+			mode: 'fixed' as ProviderMode,
+			picked: current === 'fixed',
+		},
+	], { title: vscode.l10n.t('Select translation service') });
+	if (selected) {
+		await configuration().update('providerMode', selected.mode, target);
 	}
-	const selectedIds = new Set(selected.map((item) => item.provider));
-	await configuration().update(
-		'enabledProviders',
-		PROVIDER_ORDER.filter((provider) => selectedIds.has(provider)),
-		target,
-	);
 }
 
 async function testProviders(): Promise<void> {
@@ -142,7 +238,7 @@ async function testProviders(): Promise<void> {
 			controller.abort();
 		});
 		try {
-			return await Promise.all(PROVIDER_ORDER.map((provider) => checkProviderHealth(provider, controller.signal)));
+			return await testAndSelectFastestProvider(controller.signal, PROVIDER_ORDER);
 		} finally {
 			cancellation.dispose();
 		}
@@ -187,7 +283,16 @@ export async function openTranslationConfiguration(): Promise<void> {
 	const current = getTranslationConfiguration(target);
 	const selected = await vscode.window.showQuickPick([
 		{
-			label: vscode.l10n.t('$(server-process) Translation Services'),
+			label: vscode.l10n.t('$(server-process) Translation Service'),
+			description: current.providerMode === 'auto'
+				? vscode.l10n.t('Automatic (lowest latency)')
+				: vscode.l10n.t('Fixed fallback order'),
+			key: 'provider',
+		},
+		{
+			label: current.providerMode === 'auto'
+				? vscode.l10n.t('$(list-selection) Automatic Provider Candidates')
+				: vscode.l10n.t('$(list-selection) Fixed Provider Order'),
 			description: current.enabledProviders.map(providerLabel).join(' → '),
 			key: 'providers',
 		},
@@ -214,6 +319,9 @@ export async function openTranslationConfiguration(): Promise<void> {
 	], { title: vscode.l10n.t('Quick Translation Settings · {0}', scopeLabel) });
 
 	switch (selected?.key) {
+		case 'provider':
+			await chooseProviderMode(target);
+			break;
 		case 'providers':
 			await chooseProviders(target);
 			break;

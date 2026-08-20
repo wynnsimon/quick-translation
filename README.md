@@ -2,13 +2,13 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A disposable VS Code translation popup that requires no API key. It tries web translation services in a fixed order:
+A disposable VS Code translation popup that requires no API key. By default, it tests enabled web translation services when the extension starts and uses the available service with the lowest latency:
 
 1. Microsoft (Bing Translator)
 2. Google Translate
 3. Baidu Translate
 
-If a service times out or fails, the extension automatically tries the next one. The UI supports English and Simplified Chinese and follows the VS Code display language.
+The remaining services are used as latency-ordered fallbacks. Results expire after 10 minutes; the next translation keeps using the previous order while refreshing latency in the background. You can also switch to a fixed provider order; failures then fall back from left to right exactly as configured. The UI supports English and Simplified Chinese and follows the VS Code display language.
 
 ## Usage
 
@@ -41,7 +41,8 @@ The primary language defaults to Simplified Chinese and the secondary language t
 Quick configuration lets you:
 
 - Save settings globally or in the current workspace; workspace settings follow native VS Code precedence and override global settings
-- Enable providers (the effective order is always Microsoft → Google → Baidu)
+- Choose automatic lowest-latency selection or a fixed fallback order
+- Choose and order the providers used by either mode
 - Choose the primary language
 - Choose the secondary language
 - Test live availability and latency for Microsoft, Google, and Baidu
@@ -50,7 +51,7 @@ Supported languages: Simplified Chinese, Traditional Chinese, English, Japanese,
 
 ## Web Translation Notice
 
-This extension emulates public requests made by provider websites. It does not use official commercial APIs and does not require user credentials. Text is sent to enabled services in order, stopping after the first successful response.
+This extension emulates public requests made by provider websites. It does not use official commercial APIs and does not require user credentials. Automatic mode sends `hello` to enabled services once at startup to measure latency. Translation text is then sent in measured order, stopping after the first successful response.
 
 Web endpoints may change and may be affected by network conditions, region restrictions, rate limits, or CAPTCHA challenges. Failures trigger the next provider. Do not translate sensitive information or use the extension for high-frequency batch requests.
 
