@@ -1,5 +1,5 @@
 {
-  "displayName": "Quick Translation",
+  "displayName": "LinguaPop",
   "description": "A quick, disposable translation popup with automatic Microsoft, Google, and Baidu fallback.",
   "category": "Quick Translation",
   "command.open": "Open Translation",

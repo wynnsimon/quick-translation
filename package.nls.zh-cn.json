@@ -1,5 +1,5 @@
 {
-  "displayName": "快捷翻译",
+  "displayName": "LinguaPop",
   "description": "用完即走的翻译浮层，支持 Microsoft、Google 和百度自动兜底。",
   "category": "快捷翻译",
   "command.open": "打开翻译",
